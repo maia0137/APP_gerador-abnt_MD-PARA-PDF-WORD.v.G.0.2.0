@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor Markdown → ABNT (Versão 3.0 Pro)</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #e2e8f0;
+            font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app {
+            max-width: 1100px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            padding: 20px 20px 30px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            margin-bottom: 0.25rem;
+            color: #1e3a5f;
+        }
+
+        .sub {
+            color: #2c5282;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #2c5282;
+            padding-left: 12px;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .field-group {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+            color: #0f172a;
+        }
+
+        textarea, .preview-area {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: 0.2s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #1e5f8e;
+            box-shadow: 0 0 0 2px rgba(30,95,142,0.2);
+        }
+
+        /* PAINEL DE IMPORTAÇÃO DE PLANILHAS */
+        .tool-box {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 1.5rem;
+        }
+        .tool-box summary {
+            font-weight: 600;
+            color: #1e3a5f;
+            cursor: pointer;
+            user-select: none;
+        }
+        .tool-content {
+            margin-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 12px;
+        }
+        .btn-inline {
+            background: #0284c7;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            margin-top: 8px;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-inline:hover { background: #0369a1; }
+
+        /* ============================================
+           ESTILOS RIGOROSOS ABNT (PREVIEW E IMPRESSÃO)
+           ============================================ */
+        .abnt-content {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            color: #000000 !important;
+        }
+
+        .preview-area {
+            background: #f8fafc;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: normal;
+        }
+
+        .abnt-content p {
+            text-align: justify;
+            text-indent: 1.5cm;
+            margin: 0 !important;
+            color: #000000 !important;
+            page-break-inside: avoid;
+        }
+
+        /* Elemento padrão Markdown --- */
+        .abnt-content hr {
+            border: none;
+            border-top: 1px solid #94a3b8;
+            margin: 18pt 0;
+        }
+
+        /* Elemento customizado [QUEBRA] */
+        .abnt-content .page-break {
+            page-break-after: always;
+            border: none;
+            margin: 0;
+            padding: 0;
+            height: 0;
+        }
+
+        .abnt-content blockquote {
+            margin-left: 4cm;
+            margin-right: 0;
+            font-size: 10pt;
+            line-height: 1;
+            text-align: justify;
+            margin-top: 12pt;
+            margin-bottom: 12pt;
+            color: #000000 !important;
+            page-break-inside: avoid;
+        }
+        
+        .abnt-content blockquote p { text-indent: 0 !important; }
+
+        .abnt-content h1 { text-transform: uppercase; } /* NBR 6024 Sec. Primária */
+        
+        .abnt-content h1, .abnt-content h2, .abnt-content h3 {
+            text-align: left;
+            text-indent: 0;
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 24pt;
+            margin-bottom: 12pt;
+            color: #000000 !important;
+            page-break-after: avoid;
+        }
+
+        .abnt-content ul, .abnt-content ol {
+            margin-left: 2cm;
+            margin-top: 6pt;
+            margin-bottom: 6pt;
+        }
+
+        .abnt-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12pt 0;
+            border-top: 2px solid #000000 !important;
+            border-bottom: 2px solid #000000 !important;
+        }
+        
+        .abnt-content th {
+            border-bottom: 1px solid #000000 !important;
+            padding: 6px 8px;
+            text-align: left;
+            font-weight: bold;
+            color: #000000 !important;
+        }
+        
+        .abnt-content td {
+            padding: 6px 8px;
+            text-align: left;
+            border: none;
+            color: #000000 !important;
+        }
+
+        .abnt-content .header-doc {
+            text-align: center;
+            margin-bottom: 2rem;
+            white-space: pre-wrap;
+            font-weight: normal;
+            color: #000000 !important;
+        }
+
+        /* INTERFACE E PAINEL DE BOTÕES */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        button.main-btn {
+            background: #1e5f8e;
+            border: none;
+            color: white;
+            font-weight: bold;
+            padding: 12px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        button.main-btn:hover { background: #0f3b57; }
+        button.main-btn.secondary { background: #4b5563; }
+        button.main-btn.secondary:hover { background: #2d3748; }
+        button.main-btn.accent { background: #0d9488; }
+        button.main-btn.accent:hover { background: #0f766e; }
+        
+        .error-msg {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 12px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        hr.divider {
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* IMPRESSÃO IMPERMEÁVEL */
+        @media print {
+            body * { visibility: hidden; }
+            #folha-abnt, #folha-abnt * { visibility: visible; }
+            #folha-abnt {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                display: block !important;
+            }
+            @page { margin: 3cm 2cm 2cm 3cm; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <h1>📄 Markdown → ABNT</h1>
+    <div class="sub">Otimizador de Relatórios de Engenharia Florestal (UEPA Castanhal)</div>
+
+    <div class="field-group">
+        <label>📌 Cabeçalho institucional (opcional)</label>
+        <textarea id="headerInput" rows="3" placeholder="UNIVERSIDADE DO ESTADO DO PARÁ..."></textarea>
+    </div>
+
+    <details class="tool-box">
+        <summary>📊 Painel de Amostragem (Importar do Excel / Google Sheets)</summary>
+        <div class="tool-content">
+            <textarea id="excelInput" rows="3" placeholder="Cole as células copiadas da sua planilha aqui..."></textarea>
+            <button id="btnImportarExcel" type="button" class="btn-inline">⚡ Injetar Tabela no Texto</button>
+        </div>
+    </details>
+
+    <div class="field-group">
+        <label>✍️ Corpo do relatório (Sintaxe Acadêmica)</label>
+        <small style="color: #475569; display: block; margin-bottom: 6px;">
+            Linha separadora: use <code>---</code> | Forçar início de uma nova folha limpa: use <code>[QUEBRA]</code>
+        </small>
+        <textarea id="bodyInput" rows="12"></textarea>
+    </div>
+
+    <div class="button-group">
+        <button id="btnVisualizar" class="main-btn secondary">👁️ Atualizar Prévia</button>
+        <button id="btnPDF" class="main-btn">📑 Imprimir / Salvar em PDF</button>
+        <button id="btnCopiar" class="main-btn accent">📋 Copiar Formatação Rica</button>
+        <button id="btnBaixarHTML" class="main-btn secondary">💾 Baixar Arquivo para Word/Docs</button>
+    </div>
+
+    <div id="errorMsg" class="error-msg"></div>
+    <hr class="divider">
+
+    <div class="field-group">
+        <label>🔍 Visualização de Conformidade Científica</label>
+        <div id="previewArea" class="preview-area abnt-content">
+            <em style="color: #6c757d;">Documento vazio.</em>
+        </div>
+    </div>
+</div>
+
+<div id="folha-abnt" class="abnt-content" style="display: none;"></div>
+
+<script>
+    const headerInput = document.getElementById('headerInput');
+    const bodyInput = document.getElementById('bodyInput');
+    const excelInput = document.getElementById('excelInput');
+    const previewDiv = document.getElementById('previewArea');
+    const errorDiv = document.getElementById('errorMsg');
+    const btnCopiar = document.getElementById('btnCopiar');
+    const btnImportarExcel = document.getElementById('btnImportarExcel');
+    const btnBaixarHTML = document.getElementById('btnBaixarHTML');
+
+    function showError(msg) {
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = '⚠️ ' + msg;
+        setTimeout(() => { errorDiv.style.display = 'none'; }, 5000);
+    }
+
+    function formatHeader(headerText) {
+        if (!headerText || headerText.trim() === '') return '';
+        const escaped = DOMPurify.sanitize(headerText);
+        return `<div class="header-doc">${escaped.replace(/\n/g, '<br>')}</div>`;
+    }
+
+    async function gerarHTMLCompleto() {
+        const headerRaw = headerInput.value;
+        let markdownBody = bodyInput.value;
+
+        if (!markdownBody.trim()) {
+            throw new Error('O corpo do texto está vazio.');
+        }
+
+        // CORREÇÃO DA QUEBRA: Substitui o marcador [QUEBRA] por uma div isolada antes do compilador markdown
+        markdownBody = markdownBody.replace(/\[QUEBRA\]/gi, '<div class="page-break"></div>');
+
+        const bodyHtml = await marked.parse(markdownBody);
+        const cleanBody = DOMPurify.sanitize(bodyHtml);
+        const headerHtml = formatHeader(headerRaw);
+        
+        return headerHtml + cleanBody;
+    }
+
+    async function atualizarPreview() {
+        try {
+            const htmlCompleto = await gerarHTMLCompleto();
+            previewDiv.innerHTML = htmlCompleto;
+            errorDiv.style.display = 'none';
+        } catch (err) {
+            previewDiv.innerHTML = `<span style="color:#c00;">❌ ${err.message}</span>`;
+            showError(err.message);
+        }
+    }
+
+    // Processamento Inteligente de Planilhas de Campo (TSV)
+    btnImportarExcel.addEventListener('click', () => {
+        const textoBruto = excelInput.value;
+        if (!textoBruto.trim()) return;
+
+        try {
+            const linhas = textoBruto.trim().split('\n');
+            let markdownTabela = '\n\n';
+            const colunasCabecalho = linhas[0].split('\t');
+            
+            markdownTabela += `| ${colunasCabecalho.join(' | ')} |\n`;
+            markdownTabela += `| ${colunasCabecalho.map(() => '---').join(' | ')} |\n`;
+
+            for (let i = 1; i < linhas.length; i++) {
+                if (!linhas[i].trim()) continue;
+                markdownTabela += `| ${linhas[i].split('\t').join(' | ')} |\n`;
+            }
+            markdownTabela += '\n';
+
+            bodyInput.value += markdownTabela;
+            excelInput.value = '';
+            document.querySelector('.tool-box').removeAttribute('open');
+            atualizarPreview();
+        } catch (err) {
+            showError(`Erro na conversão dos dados: ${err.message}`);
+        }
+    });
+
+    // SISTEMA DE CÓPIA MODERNA (Preserva tabelas em dispositivos móveis)
+    btnCopiar.addEventListener('click', async () => {
+        try {
+            await atualizarPreview();
+            const htmlConteudo = previewDiv.innerHTML;
+
+            // Injeta regras de estilo inline explícitas para o Docs/Word assimilar a formatação de tabelas
+            const estilosInline = `
+                <style>
+                    body, p, td, th { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000000; line-height: 1.5; }
+                    p { text-align: justify; text-indent: 1.5cm; margin: 0; }
+                    h1, h2, h3 { font-weight: bold; color: #000000; text-align: left; margin-top: 24pt; margin-bottom: 12pt; }
+                    h1 { text-transform: uppercase; }
+                    table { border-collapse: collapse; width: 100%; border-top: 2px solid #000000; border-bottom: 2px solid #000000; margin: 12pt 0; }
+                    th { border-bottom: 1px solid #000000; padding: 6px 8px; text-align: left; font-weight: bold; }
+                    td { padding: 6px 8px; text-align: left; }
+                    blockquote { margin-left: 4cm; font-size: 10pt; line-height: 1; text-align: justify; }
+                    .header-doc { text-align: center; margin-bottom: 2rem; }
+                </style>
+            `;
+
+            const documentoMontado = `<!DOCTYPE html><html><head><meta charset="utf-8">${estilosInline}</head><body>${htmlConteudo}</body></html>`;
+
+            if (navigator.clipboard && navigator.clipboard.write) {
+                const blobHtml = new Blob([documentoMontado], { type: 'text/html' });
+                const blobText = new Blob([previewDiv.innerText], { type: 'text/plain' });
+
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': blobHtml,
+                        'text/plain': blobText
+                    })
+                ]);
+            } else {
+                // Fallback para navegadores muito antigos
+                const range = document.createRange();
+                range.selectNodeContents(previewDiv);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                document.execCommand('copy');
+                selection.removeAllRanges();
+            }
+
+            const txtOriginal = btnCopiar.innerHTML;
+            btnCopiar.innerHTML = '✅ Copiado com Tabelas!';
+            btnCopiar.style.background = '#16a34a';
+            setTimeout(() => { btnCopiar.innerHTML = txtOriginal; btnCopiar.style.background = ''; }, 3000);
+
+        } catch (err) {
+            showError(`O sistema bloqueou a cópia em lote: ${err.message}. Use o botão de Baixar Arquivo.`);
+        }
+    });
+
+    // COMPONENTE EXTRA: GERAÇÃO DE ARQUIVO WEB COMPILADO
+    btnBaixarHTML.addEventListener('click', async () => {
+        try {
+            await atualizarPreview();
+            const htmlConteudo = previewDiv.innerHTML;
+            const estilosDocumento = `
+                <style>
+                    @page { size: A4; margin: 3cm 2cm 2cm 3cm; }
+                    body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000000; line-height: 1.5; margin: 3cm 2cm 2cm 3cm; }
+                    p { text-align: justify; text-indent: 1.5cm; margin: 0; }
+                    h1, h2, h3 { font-weight: bold; color: #000000; text-align: left; margin-top: 24pt; margin-bottom: 12pt; }
+                    h1 { text-transform: uppercase; }
+                    table { border-collapse: collapse; width: 100%; border-top: 2px solid #000000; border-bottom: 2px solid #000000; margin: 12pt 0; }
+                    th { border-bottom: 1px solid #000000; padding: 6px 8px; text-align: left; }
+                    td { padding: 6px 8px; text-align: left; }
+                    blockquote { margin-left: 4cm; font-size: 10pt; line-height: 1; text-align: justify; }
+                    .header-doc { text-align: center; margin-bottom: 2rem; white-space: pre-wrap; }
+                    .page-break { page-break-after: always; }
+                    hr { border: none; border-top: 1px solid #94a3b8; margin: 18pt 0; }
+                </style>
+            `;
+            const arquivoFinal = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatorio_Florestal_ABNT</title>${estilosDocumento}</head><body>${arquivoConteudo = htmlConteudo}</body></html>`;
+            
+            const blob = new Blob([arquivoFinal], { type: 'text/html' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'relatorio_florestal.html';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            showError(`Erro ao baixar arquivo: ${err.message}`);
+        }
+    });
+
+    document.getElementById('btnVisualizar').addEventListener('click', atualizarPreview);
+    document.getElementById('btnPDF').addEventListener('click', () => {
+        atualizarPreview().then(() => {
+            const folha = document.getElementById('folha-abnt');
+            folha.innerHTML = previewDiv.innerHTML;
+            folha.style.display = 'block';
+            setTimeout(() => { window.print(); folha.style.display = 'none'; }, 100);
+        });
+    });
+
+    window.addEventListener('load', () => {
+        headerInput.value = `UNIVERSIDADE DO ESTADO DO PARÁ - UEPA\nCAMPUS UNIVERSITÁRIO DE CASTANHAL\nCURSO DE ENGENHARIA FLORESTAL\nALUNO: EVANDRO MAIA NEVES`;
+        bodyInput.value = `# PLANO DE PESQUISA\n\n## IDENTIFICAÇÃO DO TRABALHO E DA AUTORIA\n\nEste é um parágrafo no padrão estrito da ABNT. Note que a linha divisória abaixo não vai quebrar a página.\n\n---\n\n## DADOS SOBRE A PESQUISA\n\n**Tema:** A ecologia de manguezal na cidade de Curuçá é de extrema relevância biológica.\n\n[QUEBRA]\n\n# NOVA SEÇÃO EM FOLHA LIMPA\n\nComo usei a tag customizada, este texto começa no topo de uma nova página no PDF.`;
+        atualizarPreview();
+    });
+</script>
+</body>
+</html>
