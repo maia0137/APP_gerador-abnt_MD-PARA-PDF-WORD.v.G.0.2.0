@@ -2,504 +2,533 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conversor Markdown → ABNT (Versão 3.0 Pro)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gerador de Relatórios ABNT - Master</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg-color: #ffffff; --text-primary: #111827; --text-secondary: #4b5563;
+            --accent: #0f172a; --accent-hover: #334155; --border: #e5e7eb;
+            --surface-gray: #f9fafb; --blue-action: #2563eb; --blue-light: #eff6ff;
         }
 
-        body {
-            background: #e2e8f0;
-            font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-            padding: 20px 10px;
-            display: flex;
-            justify-content: center;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-primary); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+        button { border: none; background: none; cursor: pointer; }
 
-        .app {
-            max-width: 1100px;
-            width: 100%;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
-            overflow: hidden;
-            padding: 20px 20px 30px;
-        }
+        /* MODO EDITOR */
+        .view-editor { display: flex; flex-direction: column; height: 100%; width: 100%; max-width: 800px; margin: 0 auto; position: relative; }
+        .top-bar { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .top-bar h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+        .actions-top { display: flex; gap: 8px; align-items: center; }
+        .user-tag { font-size: 0.75rem; background: var(--surface-gray); padding: 4px 8px; border-radius: 12px; color: var(--text-secondary); font-weight: 500; }
+        .btn-config { font-size: 1.2rem; color: var(--text-secondary); padding: 4px; border-radius: 6px; }
+        .btn-config:hover { background: var(--surface-gray); color: var(--accent); }
+        
+        .md-notice { background-color: var(--blue-light); color: #1e3a8a; padding: 10px 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #bfdbfe; flex-shrink: 0; }
+        
+        .editor-scroll-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; padding-bottom: 100px; }
+        .input-ghost { width: 100%; border: none; outline: none; background: transparent; resize: none; color: var(--text-primary); }
+        .input-ghost::placeholder { color: #9ca3af; }
 
-        h1 {
-            font-size: 1.6rem;
-            margin-bottom: 0.25rem;
-            color: #1e3a5f;
-        }
+        .header-section { background: var(--surface-gray); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+        .header-section.hidden { display: none; }
+        .header-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--border); padding-bottom: 8px; }
+        .header-toolbar span { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+        .btn-remove-header { font-size: 0.75rem; color: #dc2626; display: flex; align-items: center; gap: 4px; font-weight: 600; }
+        .input-header { font-family: 'Courier New', Courier, monospace; font-size: 0.95rem; line-height: 1.4; color: var(--text-secondary); }
+        .input-body { font-family: 'Courier New', Courier, monospace; font-size: 1rem; line-height: 1.6; flex: 1; min-height: 300px; }
 
-        .sub {
-            color: #2c5282;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #2c5282;
-            padding-left: 12px;
-            font-weight: 500;
-            font-size: 0.95rem;
-        }
+        .btn-add-header { font-size: 0.85rem; color: var(--blue-action); display: flex; align-items: center; gap: 6px; font-weight: 600; padding: 8px 0; display: none; }
+        .btn-add-header.visible { display: flex; }
 
-        .field-group {
-            margin-bottom: 1.2rem;
-        }
+        /* BARRA INFERIOR */
+        .bottom-action-bar { position: absolute; bottom: 0; left: 0; width: 100%; background: var(--bg-color); border-top: 1px solid var(--border); box-shadow: 0 -4px 20px rgba(0,0,0,0.05); padding: 10px 15px 20px 15px; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
+        .tools-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .tools-scroll::-webkit-scrollbar { display: none; }
+        .tool-btn { display: flex; align-items: center; justify-content: center; height: 40px; min-width: 44px; border-radius: 8px; background: var(--surface-gray); color: var(--accent); font-size: 1.2rem; flex-shrink: 0; border: 1px solid transparent; transition: 0.1s; }
+        .tool-btn:active { background: #e5e7eb; border-color: var(--border); }
+        .tool-btn.text-btn { padding: 0 12px; font-size: 0.9rem; font-weight: 600; gap: 6px; }
+        .btn-generate { width: 100%; background: var(--accent); color: white; font-size: 1rem; font-weight: 600; padding: 14px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 
-        label {
-            font-weight: 600;
-            display: block;
-            margin-bottom: 6px;
-            color: #0f172a;
-        }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #10b981; color: white; padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 1000; display: flex; align-items: center; gap: 8px; text-align: center; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-        textarea, .preview-area {
-            width: 100%;
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            padding: 14px 16px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            resize: vertical;
-            transition: 0.2s;
-        }
+        /* MODAIS */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .modal { background: white; width: 100%; max-width: 400px; border-radius: 16px; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-header h3 { font-size: 1.1rem; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+        
+        .modal label { font-size: 0.8rem; font-weight: bold; color: var(--text-secondary); margin-bottom: 4px; display: block; }
+        .modal textarea, .modal input[type="text"], .modal select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 0.9rem; margin-bottom: 12px; }
+        .modal textarea:focus, .modal input:focus, .modal select:focus { border-color: var(--blue-action); outline: none; }
+        
+        .modal-actions { display: flex; gap: 10px; margin-top: 5px; }
+        .btn-modal { flex: 1; padding: 12px; border-radius: 8px; font-weight: 600; }
+        .btn-cancel { background: var(--surface-gray); color: var(--text-primary); }
+        .btn-insert { background: var(--blue-action); color: white; }
 
-        textarea:focus {
-            outline: none;
-            border-color: #1e5f8e;
-            box-shadow: 0 0 0 2px rgba(30,95,142,0.2);
-        }
+        /* Toggle Switch */
+        .switch-container { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--blue-action); }
+        input:checked + .slider:before { transform: translateX(22px); }
 
-        /* PAINEL DE IMPORTAÇÃO DE PLANILHAS */
-        .tool-box {
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 1.5rem;
-        }
-        .tool-box summary {
-            font-weight: 600;
-            color: #1e3a5f;
-            cursor: pointer;
-            user-select: none;
-        }
-        .tool-content {
-            margin-top: 12px;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 12px;
-        }
-        .btn-inline {
-            background: #0284c7;
-            padding: 8px 16px;
-            font-size: 0.85rem;
-            border-radius: 8px;
-            margin-top: 8px;
-            color: white;
-            font-weight: bold;
-            border: none;
-            cursor: pointer;
-        }
-        .btn-inline:hover { background: #0369a1; }
+        .file-upload-wrapper { position: relative; border: 2px dashed var(--border); border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px; background: var(--surface-gray); cursor: pointer; }
+        .file-upload-wrapper:hover { border-color: var(--blue-action); }
+        .file-upload-wrapper input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .file-info { font-size: 0.85rem; color: var(--text-secondary); margin-top: 5px; word-break: break-all; }
 
-        /* ============================================
-           ESTILOS RIGOROSOS ABNT (PREVIEW E IMPRESSÃO)
-           ============================================ */
-        .abnt-content {
-            font-family: 'Times New Roman', Times, serif;
-            font-size: 12pt;
-            line-height: 1.5;
-            color: #000000 !important;
-        }
+        /* MODO PREVIEW / FOLHA ABNT */
+        .view-preview { display: none; flex-direction: column; height: 100%; width: 100%; background: #e2e8f0; position: absolute; top: 0; left: 0; z-index: 50; }
+        .preview-header { background: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .btn-back { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); }
+        .btn-print { background: var(--blue-action); color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .preview-scroll { flex: 1; overflow-y: auto; padding: 20px 10px; display: flex; justify-content: center; align-items: flex-start; }
+        .a4-virtual { background: white; width: 100%; max-width: 21cm; padding: 25px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; }
 
-        .preview-area {
-            background: #f8fafc;
-            max-height: 500px;
-            overflow-y: auto;
-            white-space: normal;
-        }
-
-        .abnt-content p {
-            text-align: justify;
-            text-indent: 1.5cm;
-            margin: 0 !important;
-            color: #000000 !important;
-            page-break-inside: avoid;
-        }
-
-        /* Elemento padrão Markdown --- */
-        .abnt-content hr {
-            border: none;
-            border-top: 1px solid #94a3b8;
-            margin: 18pt 0;
-        }
-
-        /* Elemento customizado [QUEBRA] */
-        .abnt-content .page-break {
-            page-break-after: always;
-            border: none;
-            margin: 0;
-            padding: 0;
-            height: 0;
-        }
-
-        .abnt-content blockquote {
-            margin-left: 4cm;
-            margin-right: 0;
-            font-size: 10pt;
-            line-height: 1;
-            text-align: justify;
-            margin-top: 12pt;
-            margin-bottom: 12pt;
-            color: #000000 !important;
-            page-break-inside: avoid;
+        /* --- ESTILIZAÇÃO ESTRITA ABNT --- */
+        .abnt-doc { 
+            font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; word-wrap: break-word; 
+            counter-reset: figuraCounter tabelaCounter;
         }
         
-        .abnt-content blockquote p { text-indent: 0 !important; }
+        .abnt-doc p { text-align: justify; text-indent: 1.5cm; margin: 0; }
+        .abnt-doc h1, .abnt-doc h2, .abnt-doc h3 { text-align: left; text-indent: 0; font-size: 12pt; font-weight: bold; margin-top: 24pt; margin-bottom: 12pt; }
+        .abnt-doc h1 { text-transform: uppercase; }
+        .abnt-doc blockquote { margin-left: 4cm; font-size: 10pt; line-height: 1; text-align: justify; margin-top: 12pt; margin-bottom: 12pt; }
+        .abnt-doc blockquote p { text-indent: 0; }
+        .abnt-doc ul, .abnt-doc ol { margin-left: 2cm; margin-top: 6pt; margin-bottom: 6pt; }
+        .abnt-doc hr { border: none; border-top: 1px solid #999; margin: 18pt 0; }
+        .abnt-doc .page-break { page-break-after: always; margin: 20px 0; border-top: 2px dashed #ccc; }
+        
+        .abnt-doc .header-doc { margin-bottom: 24pt; }
+        .abnt-doc .header-doc p, .abnt-doc .header-doc h1 { text-align: center; text-indent: 0; margin: 0; font-weight: normal; text-transform: none; font-size: 12pt; }
+        .abnt-doc .header-doc strong { font-weight: bold; }
+        
+        /* Tabelas e Imagens */
+        .table-wrapper { width: 100%; overflow-x: auto; margin: 12pt 0; }
+        .abnt-doc table { border-collapse: collapse; width: 100%; min-width: 400px; border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 0; }
+        .abnt-doc th { border-bottom: 1px solid #000; padding: 6px; text-align: left; font-weight: bold; }
+        .abnt-doc td { padding: 6px; text-align: left; border: none; }
+        .abnt-tabela-container { margin: 18pt 0; page-break-inside: avoid; }
+        .abnt-table-title { font-size: 12pt; text-align: left; margin-bottom: 6pt; display: block; }
+        .abnt-table-title::before { counter-increment: tabelaCounter; content: "Tabela " counter(tabelaCounter) " – "; font-weight: normal; }
+        .abnt-table-source, .abnt-source { font-size: 10pt; text-align: left; margin-top: 6pt; display: block; }
+        .abnt-figure { margin: 18pt 0; text-align: center; page-break-inside: avoid; display: block; }
+        .abnt-figure img { max-width: 100%; max-height: 400px; object-fit: contain; display: block; margin: 6pt auto; } 
+        .abnt-caption { font-size: 12pt; text-align: left; margin-bottom: 6pt; }
+        .abnt-caption::before { counter-increment: figuraCounter; content: "Figura " counter(figuraCounter) " – "; font-weight: bold; }
 
-        .abnt-content h1 { text-transform: uppercase; } /* NBR 6024 Sec. Primária */
-        
-        .abnt-content h1, .abnt-content h2, .abnt-content h3 {
-            text-align: left;
-            text-indent: 0;
-            font-size: 12pt;
-            font-weight: bold;
-            margin-top: 24pt;
-            margin-bottom: 12pt;
-            color: #000000 !important;
-            page-break-after: avoid;
-        }
+        /* --- NOTAS DE RODAPÉ ABNT --- */
+        .abnt-footnote-ref { font-size: 8pt; vertical-align: super; line-height: 0; color: #000; text-decoration: none; }
+        .abnt-footnotes-container { margin-top: 36pt; page-break-inside: avoid; }
+        .abnt-footnote-divider { width: 3cm; border: none; border-top: 1px solid #000; margin: 0 0 6pt 0; text-align: left; margin-left: 0; }
+        .abnt-footnote-text { font-size: 10pt !important; line-height: 1 !important; text-align: justify !important; text-indent: 0 !important; margin-bottom: 4pt !important; }
+        .abnt-footnote-text sup { font-size: 8pt; }
 
-        .abnt-content ul, .abnt-content ol {
-            margin-left: 2cm;
-            margin-top: 6pt;
-            margin-bottom: 6pt;
-        }
-
-        .abnt-content table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 12pt 0;
-            border-top: 2px solid #000000 !important;
-            border-bottom: 2px solid #000000 !important;
-        }
+        /* --- NUMERAÇÃO DE PÁGINAS ABNT --- */
+        .page-number-indicator { display: none; position: absolute; top: 3cm; right: 2cm; font-size: 10pt; color: #999; }
+        .enable-page-numbers .page-number-indicator { display: block; }
         
-        .abnt-content th {
-            border-bottom: 1px solid #000000 !important;
-            padding: 6px 8px;
-            text-align: left;
-            font-weight: bold;
-            color: #000000 !important;
-        }
+        @page { size: A4; margin: 3cm 2cm 2cm 3cm; }
         
-        .abnt-content td {
-            padding: 6px 8px;
-            text-align: left;
-            border: none;
-            color: #000000 !important;
-        }
-
-        .abnt-content .header-doc {
-            text-align: center;
-            margin-bottom: 2rem;
-            white-space: pre-wrap;
-            font-weight: normal;
-            color: #000000 !important;
-        }
-
-        /* INTERFACE E PAINEL DE BOTÕES */
-        .button-group {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin: 20px 0;
-        }
-        
-        button.main-btn {
-            background: #1e5f8e;
-            border: none;
-            color: white;
-            font-weight: bold;
-            padding: 12px 20px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: 0.2s;
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        button.main-btn:hover { background: #0f3b57; }
-        button.main-btn.secondary { background: #4b5563; }
-        button.main-btn.secondary:hover { background: #2d3748; }
-        button.main-btn.accent { background: #0d9488; }
-        button.main-btn.accent:hover { background: #0f766e; }
-        
-        .error-msg {
-            background: #fee2e2;
-            color: #991b1b;
-            padding: 12px;
-            border-radius: 12px;
-            margin: 15px 0;
-            display: none;
-        }
-        
-        hr.divider {
-            margin: 20px 0;
-            border: 1px solid #e2e8f0;
-        }
-
-        /* IMPRESSÃO IMPERMEÁVEL */
+        /* CSS Avançado para Numeração (Funciona dependendo da impressora/navegador) */
         @media print {
             body * { visibility: hidden; }
-            #folha-abnt, #folha-abnt * { visibility: visible; }
-            #folha-abnt {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                margin: 0;
-                padding: 0;
-                display: block !important;
+            .view-preview, .view-preview * { visibility: visible; }
+            .view-preview { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: transparent; }
+            .preview-header { display: none; }
+            .preview-scroll { padding: 0; overflow: visible; display: block; }
+            .a4-virtual { padding: 0; box-shadow: none; max-width: none; border: none; }
+            .abnt-doc .page-break { border-top: none; margin: 0; }
+            .page-number-indicator { display: none; } /* Oculta o indicador visual falso no papel */
+            
+            /* Tenta forçar a numeração no canto superior direito caso o browser suporte @page bem */
+            .enable-page-numbers {
+                @page {
+                    @top-right { content: counter(page); font-size: 10pt; font-family: 'Times New Roman'; }
+                }
             }
-            @page { margin: 3cm 2cm 2cm 3cm; }
+        }
+
+        @media (min-width: 768px) {
+            .a4-virtual { padding: 3cm 2cm 2cm 3cm; margin: 20px 0; }
+            .bottom-action-bar { border-radius: 16px 16px 0 0; padding: 15px; }
+            .tools-scroll { justify-content: center; }
+            .page-number-indicator { top: 2cm; right: 2cm; }
         }
     </style>
 </head>
 <body>
 
-<div class="app">
-    <h1>📄 Markdown → ABNT</h1>
-    <div class="sub">Otimizador de Relatórios de Engenharia Florestal (UEPA Castanhal)</div>
+<div id="toast" class="toast"><i class="ri-information-line"></i> <span>Ação realizada!</span></div>
 
-    <div class="field-group">
-        <label>📌 Cabeçalho institucional (opcional)</label>
-        <textarea id="headerInput" rows="3" placeholder="UNIVERSIDADE DO ESTADO DO PARÁ..."></textarea>
-    </div>
-
-    <details class="tool-box">
-        <summary>📊 Painel de Amostragem (Importar do Excel / Google Sheets)</summary>
-        <div class="tool-content">
-            <textarea id="excelInput" rows="3" placeholder="Cole as células copiadas da sua planilha aqui..."></textarea>
-            <button id="btnImportarExcel" type="button" class="btn-inline">⚡ Injetar Tabela no Texto</button>
+<!-- MODO EDITOR -->
+<div class="view-editor" id="editorView">
+    <header class="top-bar">
+        <h1><i class="ri-article-line"></i> ABNT Express <span>V9</span></h1>
+        <div class="actions-top">
+            <span class="user-tag">UEPA | Maia</span>
+            <button class="btn-config" onclick="openConfigModal()" title="Configurações do Documento"><i class="ri-settings-3-line"></i></button>
         </div>
-    </details>
+    </header>
 
-    <div class="field-group">
-        <label>✍️ Corpo do relatório (Sintaxe Acadêmica)</label>
-        <small style="color: #475569; display: block; margin-bottom: 6px;">
-            Linha separadora: use <code>---</code> | Forçar início de uma nova folha limpa: use <code>[QUEBRA]</code>
-        </small>
-        <textarea id="bodyInput" rows="12"></textarea>
+    <div class="md-notice">
+        <i class="ri-lightbulb-flash-line"></i> 
+        <span>Dica: Use o novo botão <strong>[ ¹ ]</strong> abaixo para inserir Notas de Rodapé.</span>
     </div>
 
-    <div class="button-group">
-        <button id="btnVisualizar" class="main-btn secondary">👁️ Atualizar Prévia</button>
-        <button id="btnPDF" class="main-btn">📑 Imprimir / Salvar em PDF</button>
-        <button id="btnCopiar" class="main-btn accent">📋 Copiar Formatação Rica</button>
-        <button id="btnBaixarHTML" class="main-btn secondary">💾 Baixar Arquivo para Word/Docs</button>
+    <div class="editor-scroll-area">
+        <button id="btnAddHeader" class="btn-add-header" onclick="toggleHeader(true)">
+            <i class="ri-add-circle-line"></i> Inserir Cabeçalho
+        </button>
+
+        <div id="headerSection" class="header-section">
+            <div class="header-toolbar">
+                <span>📌 Cabeçalho Institucional</span>
+                <button class="btn-remove-header" onclick="toggleHeader(false)"><i class="ri-delete-bin-line"></i> Remover</button>
+            </div>
+            <textarea id="headerInput" class="input-ghost input-header" rows="4"></textarea>
+        </div>
+        
+        <textarea id="bodyInput" class="input-ghost input-body" placeholder="Escreva seu relatório aqui..."></textarea>
     </div>
 
-    <div id="errorMsg" class="error-msg"></div>
-    <hr class="divider">
+    <nav class="bottom-action-bar">
+        <div class="tools-scroll">
+            <button class="tool-btn" data-action="bold" title="Negrito"><i class="ri-bold"></i></button>
+            <button class="tool-btn" data-action="italic" title="Itálico"><i class="ri-italic"></i></button>
+            <button class="tool-btn" data-action="h1" title="Título"><i class="ri-heading"></i></button>
+            <button class="tool-btn" data-action="quote" title="Citação ABNT"><i class="ri-double-quotes-r"></i></button>
+            <button class="tool-btn" data-action="break" title="Nova Folha"><i class="ri-page-separator"></i></button>
+            
+            <div style="width: 2px; background: var(--border); margin: 4px; border-radius: 2px;"></div>
+            
+            <!-- NOVO BOTÃO NOTA DE RODAPÉ -->
+            <button class="tool-btn" onclick="insertFootnote()" title="Nota de Rodapé" style="font-size: 0.95rem; font-weight: bold; color: var(--blue-action);">
+                [ ¹ ]
+            </button>
+            
+            <div style="width: 2px; background: var(--border); margin: 4px; border-radius: 2px;"></div>
 
-    <div class="field-group">
-        <label>🔍 Visualização de Conformidade Científica</label>
-        <div id="previewArea" class="preview-area abnt-content">
-            <em style="color: #6c757d;">Documento vazio.</em>
+            <button class="tool-btn text-btn" onclick="openExcelModal()" title="Importar Tabela ABNT">
+                <i class="ri-table-2"></i> Tabela
+            </button>
+            <button class="tool-btn text-btn" onclick="openImageModal()" style="color: #059669;" title="Inserir Imagem ABNT">
+                <i class="ri-image-add-fill"></i> Imagem
+            </button>
+        </div>
+
+        <button class="btn-generate" onclick="generateDocument()">
+            <i class="ri-file-pdf-2-fill"></i> Gerar PDF ABNT
+        </button>
+    </nav>
+</div>
+
+<!-- MODAL CONFIGURAÇÕES (NUMERAÇÃO DE PÁGINA) -->
+<div class="overlay" id="configModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="ri-settings-3-line"></i> Opções do Documento</h3>
+            <button onclick="closeModal('configModal')" style="font-size: 1.2rem; color: #999;"><i class="ri-close-line"></i></button>
+        </div>
+        
+        <div class="switch-container">
+            <div>
+                <strong style="display:block; font-size:0.9rem;">Numeração de Páginas</strong>
+                <span style="font-size:0.75rem; color:var(--text-secondary);">Exibir número no canto superior direito (ABNT).</span>
+            </div>
+            <label class="switch">
+                <input type="checkbox" id="togglePageNumbers">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 15px;">
+            <button class="btn-modal btn-insert" onclick="closeModal('configModal')">Concluir</button>
         </div>
     </div>
 </div>
 
-<div id="folha-abnt" class="abnt-content" style="display: none;"></div>
+<!-- MODAL TABELA E IMAGEM (Reaproveitados da V8) -->
+<div class="overlay" id="excelModal">
+    <div class="modal">
+        <div class="modal-header"><h3><i class="ri-table-2"></i> Inserir Tabela</h3><button onclick="closeModal('excelModal')"><i class="ri-close-line"></i></button></div>
+        <label>Título</label><input type="text" id="tableTitle" placeholder="Ex: Crescimento de Espécies">
+        <label>Dados</label><textarea id="excelData" style="height: 80px;" placeholder="Cole do Excel..."></textarea>
+        <label>Fonte</label><input type="text" id="tableSource" placeholder="Ex: Elaborado pelo autor">
+        <div class="modal-actions">
+            <button class="btn-modal btn-cancel" onclick="closeModal('excelModal')">Cancelar</button>
+            <button class="btn-modal btn-insert" onclick="insertExcelTable()">Gerar Tabela</button>
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="imageModal">
+    <div class="modal">
+        <div class="modal-header"><h3><i class="ri-image-add-line"></i> Inserir Figura</h3><button onclick="closeModal('imageModal')"><i class="ri-close-line"></i></button></div>
+        <div class="file-upload-wrapper">
+            <i class="ri-upload-cloud-2-line" style="font-size: 2rem; color: var(--blue-action);"></i>
+            <p style="font-weight: bold; margin-top: 5px;">Tocar para Galeria/Câmera</p>
+            <p class="file-info" id="fileChosenText">Nenhuma selecionada</p>
+            <input type="file" id="imageFileInput" accept="image/*" onchange="handleFileSelect(event)">
+        </div>
+        <label>Ou Link</label><input type="text" id="imageUrlInput" placeholder="https://site.com/imagem.jpg">
+        <label>Legenda</label><input type="text" id="imageCaption" placeholder="Ex: Mapa da Bacia">
+        <label>Fonte</label><input type="text" id="imageSource" placeholder="Ex: Autor (2026)">
+        <label>Tamanho na Página</label>
+        <select id="imageSize">
+            <option value="auto">Padrão (Seguro - Recomendado)</option>
+            <option value="25%">Pequena (25% da largura)</option>
+            <option value="50%">Média (50% da largura)</option>
+            <option value="75%">Grande (75% da largura)</option>
+            <option value="100%">Ocupar Largura Total</option>
+        </select>
+        <div class="modal-actions">
+            <button class="btn-modal btn-cancel" onclick="closeModal('imageModal')">Cancelar</button>
+            <button class="btn-modal btn-insert" onclick="insertImageToEditor()">Inserir Imagem</button>
+        </div>
+    </div>
+</div>
+
+<!-- PREVIEW / PDF -->
+<div class="view-preview" id="previewView">
+    <div class="preview-header">
+        <button class="btn-back" onclick="backToEditor()">
+            <i class="ri-arrow-left-line"></i> Voltar à edição
+        </button>
+        <button class="btn-print" onclick="window.print()">
+            <i class="ri-printer-fill"></i> Imprimir / PDF
+        </button>
+    </div>
+    <div class="preview-scroll">
+        <div class="a4-virtual abnt-doc" id="renderArea">
+            <!-- Indicador visual apenas para avisar que a numeração está ativa -->
+            <div class="page-number-indicator">#</div>
+        </div>
+    </div>
+</div>
 
 <script>
-    const headerInput = document.getElementById('headerInput');
+    const editorView = document.getElementById('editorView');
+    const previewView = document.getElementById('previewView');
     const bodyInput = document.getElementById('bodyInput');
-    const excelInput = document.getElementById('excelInput');
-    const previewDiv = document.getElementById('previewArea');
-    const errorDiv = document.getElementById('errorMsg');
-    const btnCopiar = document.getElementById('btnCopiar');
-    const btnImportarExcel = document.getElementById('btnImportarExcel');
-    const btnBaixarHTML = document.getElementById('btnBaixarHTML');
+    const headerInput = document.getElementById('headerInput');
+    const headerSection = document.getElementById('headerSection');
+    const btnAddHeader = document.getElementById('btnAddHeader');
+    const renderArea = document.getElementById('renderArea');
+    const toast = document.getElementById('toast');
+    const chkPageNumbers = document.getElementById('togglePageNumbers');
 
-    function showError(msg) {
-        errorDiv.style.display = 'block';
-        errorDiv.textContent = '⚠️ ' + msg;
-        setTimeout(() => { errorDiv.style.display = 'none'; }, 5000);
+    const localImageRegistry = {};
+    let localImageCounter = 0;
+
+    window.addEventListener('load', () => {
+        headerInput.value = `**UNIVERSIDADE DO ESTADO DO PARÁ - UEPA**\nCAMPUS UNIVERSITÁRIO DE CASTANHAL\nCURSO DE ENGENHARIA FLORESTAL\n_ALUNO: EVANDRO MAIA NEVES_`;
+        bodyInput.value = `# Introdução\n\nEste é um texto de exemplo para demonstrar o sistema de notas de rodapé.\n\nA Amazônia é um domínio morfoclimático de extrema importância. De acordo com os autores, sua biodiversidade é incomparável e precisa ser estudada a fundo [^1]. \n\nAlém disso, as políticas públicas florestais impactam diretamente a economia local [^2].\n\n[^1]: Informação retirada do artigo "Ecologia Neotropical", Maia (2026).\n\n[^2]: É importante ressaltar que a economia também depende do manejo sustentável.`;
+        adjustHeight(headerInput); adjustHeight(bodyInput);
+    });
+
+    function showToast(message, duration = 3000) {
+        toast.querySelector('span').innerHTML = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), duration);
     }
 
-    function formatHeader(headerText) {
-        if (!headerText || headerText.trim() === '') return '';
-        const escaped = DOMPurify.sanitize(headerText);
-        return `<div class="header-doc">${escaped.replace(/\n/g, '<br>')}</div>`;
-    }
+    function adjustHeight(element) { element.style.height = 'auto'; element.style.height = (element.scrollHeight) + 'px'; }
+    headerInput.addEventListener('input', function() { adjustHeight(this); });
+    bodyInput.addEventListener('input', function() { adjustHeight(this); });
 
-    async function gerarHTMLCompleto() {
-        const headerRaw = headerInput.value;
-        let markdownBody = bodyInput.value;
-
-        if (!markdownBody.trim()) {
-            throw new Error('O corpo do texto está vazio.');
+    let headerEnabled = true;
+    function toggleHeader(show) {
+        headerEnabled = show;
+        if (show) {
+            headerSection.classList.remove('hidden'); btnAddHeader.classList.remove('visible');
+            if(headerInput.value === '') headerInput.value = '**INSTITUIÇÃO**\nNome do Aluno';
+            adjustHeight(headerInput); headerInput.focus();
+        } else {
+            headerSection.classList.add('hidden'); btnAddHeader.classList.add('visible'); headerInput.value = '';
         }
+    }
 
-        // CORREÇÃO DA QUEBRA: Substitui o marcador [QUEBRA] por uma div isolada antes do compilador markdown
-        markdownBody = markdownBody.replace(/\[QUEBRA\]/gi, '<div class="page-break"></div>');
+    // ==========================================
+    // SISTEMA DE NOTAS DE RODAPÉ (Lógica Nova)
+    // ==========================================
+    function insertFootnote() {
+        const text = bodyInput.value;
+        // Encontra o maior número de nota já existente
+        const regex = /\[\^(\d+)\]:/g;
+        let maxId = 0;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            const id = parseInt(match[1]);
+            if (id > maxId) maxId = id;
+        }
+        const nextId = maxId + 1;
 
-        const bodyHtml = await marked.parse(markdownBody);
-        const cleanBody = DOMPurify.sanitize(bodyHtml);
-        const headerHtml = formatHeader(headerRaw);
+        // Insere a referência no local do cursor
+        insertAtCursor(`[^${nextId}]`, '');
+
+        // Joga a definição pro final do texto
+        bodyInput.value += `\n\n[^${nextId}]: Digite a explicação da nota aqui.`;
+        adjustHeight(bodyInput);
         
-        return headerHtml + cleanBody;
+        showToast(`Nota [${nextId}] inserida! <br><small>Edite o conteúdo no final do texto.</small>`, 4000);
     }
 
-    async function atualizarPreview() {
-        try {
-            const htmlCompleto = await gerarHTMLCompleto();
-            previewDiv.innerHTML = htmlCompleto;
-            errorDiv.style.display = 'none';
-        } catch (err) {
-            previewDiv.innerHTML = `<span style="color:#c00;">❌ ${err.message}</span>`;
-            showError(err.message);
+    marked.setOptions({ breaks: true });
+
+    async function generateDocument() {
+        let markdown = bodyInput.value;
+        const header = headerInput.value;
+
+        // 1. Intercepta as Notas de Rodapé (Extração)
+        let footnotes = [];
+        const regexDef = /^\[\^(\d+)\]:\s*(.+)$/gm;
+        markdown = markdown.replace(regexDef, (match, id, text) => {
+            footnotes.push({ id, text });
+            return ''; // Remove a definição bruta do markdown principal
+        });
+
+        // Intercepta as Referências Inline
+        const regexInline = /\[\^(\d+)\]/g;
+        markdown = markdown.replace(regexInline, '<a href="#fn$1" class="abnt-footnote-ref">[$1]</a>');
+
+        // 2. Converte Quebras e Marcadores Padrão
+        let processedMarkdown = markdown.replace(/\[QUEBRA\]/gi, '<div class="page-break"></div>');
+        let bodyHtml = await marked.parse(processedMarkdown);
+
+        // 3. Pós-processamento de Tabelas e Imagens
+        bodyHtml = bodyHtml.replace(/<table>/g, '<div class="table-wrapper"><table>').replace(/<\/table>/g, '</table></div>');
+        
+        bodyHtml = bodyHtml.replace(/<img src="([^"]+)" alt="([^"]*)"(?: title="([^"]*)")?\s*\/?>/g, (match, src, alt, title) => {
+            const srcFinal = localImageRegistry[src] || src;
+            const legenda = alt || 'Sem legenda';
+            const sourceRaw = title || 'Elaborado pelo autor';
+            let fonte = sourceRaw; let sizeCss = 'max-height: 400px; width: auto; max-width: 100%;';
+            if (sourceRaw.includes('|size:')) {
+                const parts = sourceRaw.split('|size:'); fonte = parts[0].trim(); const size = parts[1].trim();
+                if (size !== 'auto') sizeCss = `width: ${size}; height: auto; max-width: 100%; max-height: 800px;`; 
+            }
+            return `<figure class="abnt-figure"><figcaption class="abnt-caption">${legenda}</figcaption><img src="${srcFinal}" alt="${legenda}" style="${sizeCss}" /><figcaption class="abnt-source">${fonte}</figcaption></figure>`;
+        });
+
+        // 4. Constrói a Seção ABNT de Notas no Final do Documento
+        if (footnotes.length > 0) {
+            // Ordena as notas pelo ID caso o usuário tenha misturado
+            footnotes.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+            
+            let notesHtml = '<div class="abnt-footnotes-container"><hr class="abnt-footnote-divider" />';
+            footnotes.forEach(note => {
+                notesHtml += `<p class="abnt-footnote-text" id="fn${note.id}"><sup>${note.id}</sup> ${note.text}</p>`;
+            });
+            notesHtml += '</div>';
+            bodyHtml += notesHtml;
         }
+
+        const cleanBody = DOMPurify.sanitize(bodyHtml, { ADD_ATTR: ['style'] });
+        
+        let headerHtml = '';
+        if (headerEnabled && header.trim()) {
+            const headerMdParsed = await marked.parse(header);
+            headerHtml = `<div class="header-doc">${DOMPurify.sanitize(headerMdParsed)}</div>`;
+        }
+
+        renderArea.innerHTML = headerHtml + cleanBody;
+
+        // Configuração de Paginação
+        if (chkPageNumbers.checked) {
+            renderArea.parentElement.parentElement.classList.add('enable-page-numbers');
+            showToast("⚠️ Na tela de impressão, marque <b>'Cabeçalhos e rodapés'</b> para o número da página aparecer.", 6000);
+        } else {
+            renderArea.parentElement.parentElement.classList.remove('enable-page-numbers');
+        }
+
+        editorView.style.display = 'none';
+        previewView.style.display = 'flex';
     }
 
-    // Processamento Inteligente de Planilhas de Campo (TSV)
-    btnImportarExcel.addEventListener('click', () => {
-        const textoBruto = excelInput.value;
-        if (!textoBruto.trim()) return;
+    function backToEditor() { previewView.style.display = 'none'; editorView.style.display = 'flex'; }
 
-        try {
-            const linhas = textoBruto.trim().split('\n');
-            let markdownTabela = '\n\n';
-            const colunasCabecalho = linhas[0].split('\t');
-            
-            markdownTabela += `| ${colunasCabecalho.join(' | ')} |\n`;
-            markdownTabela += `| ${colunasCabecalho.map(() => '---').join(' | ')} |\n`;
+    function insertAtCursor(textPrefix, textSuffix = '') {
+        const start = bodyInput.selectionStart; const end = bodyInput.selectionEnd;
+        const text = bodyInput.value; const selectedText = text.substring(start, end);
+        const replacement = textPrefix + selectedText + textSuffix;
+        bodyInput.value = text.substring(0, start) + replacement + text.substring(end);
+        bodyInput.focus();
+        const newCursorPos = start + (selectedText.length === 0 ? textPrefix.length : replacement.length);
+        bodyInput.setSelectionRange(newCursorPos, newCursorPos);
+        adjustHeight(bodyInput);
+    }
 
-            for (let i = 1; i < linhas.length; i++) {
-                if (!linhas[i].trim()) continue;
-                markdownTabela += `| ${linhas[i].split('\t').join(' | ')} |\n`;
+    // Botões Toolbar Básicos
+    document.querySelectorAll('.tool-btn[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const action = btn.getAttribute('data-action');
+            switch (action) {
+                case 'bold': insertAtCursor('**', '**'); break;
+                case 'italic': insertAtCursor('_', '_'); break;
+                case 'h1': insertAtCursor('\n# ', '\n'); break;
+                case 'quote': insertAtCursor('\n> ', '\n'); break;
+                case 'break': insertAtCursor('\n\n[QUEBRA]\n\n', ''); break;
             }
-            markdownTabela += '\n';
-
-            bodyInput.value += markdownTabela;
-            excelInput.value = '';
-            document.querySelector('.tool-box').removeAttribute('open');
-            atualizarPreview();
-        } catch (err) {
-            showError(`Erro na conversão dos dados: ${err.message}`);
-        }
-    });
-
-    // SISTEMA DE CÓPIA MODERNA (Preserva tabelas em dispositivos móveis)
-    btnCopiar.addEventListener('click', async () => {
-        try {
-            await atualizarPreview();
-            const htmlConteudo = previewDiv.innerHTML;
-
-            // Injeta regras de estilo inline explícitas para o Docs/Word assimilar a formatação de tabelas
-            const estilosInline = `
-                <style>
-                    body, p, td, th { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000000; line-height: 1.5; }
-                    p { text-align: justify; text-indent: 1.5cm; margin: 0; }
-                    h1, h2, h3 { font-weight: bold; color: #000000; text-align: left; margin-top: 24pt; margin-bottom: 12pt; }
-                    h1 { text-transform: uppercase; }
-                    table { border-collapse: collapse; width: 100%; border-top: 2px solid #000000; border-bottom: 2px solid #000000; margin: 12pt 0; }
-                    th { border-bottom: 1px solid #000000; padding: 6px 8px; text-align: left; font-weight: bold; }
-                    td { padding: 6px 8px; text-align: left; }
-                    blockquote { margin-left: 4cm; font-size: 10pt; line-height: 1; text-align: justify; }
-                    .header-doc { text-align: center; margin-bottom: 2rem; }
-                </style>
-            `;
-
-            const documentoMontado = `<!DOCTYPE html><html><head><meta charset="utf-8">${estilosInline}</head><body>${htmlConteudo}</body></html>`;
-
-            if (navigator.clipboard && navigator.clipboard.write) {
-                const blobHtml = new Blob([documentoMontado], { type: 'text/html' });
-                const blobText = new Blob([previewDiv.innerText], { type: 'text/plain' });
-
-                await navigator.clipboard.write([
-                    new ClipboardItem({
-                        'text/html': blobHtml,
-                        'text/plain': blobText
-                    })
-                ]);
-            } else {
-                // Fallback para navegadores muito antigos
-                const range = document.createRange();
-                range.selectNodeContents(previewDiv);
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                selection.addRange(range);
-                document.execCommand('copy');
-                selection.removeAllRanges();
-            }
-
-            const txtOriginal = btnCopiar.innerHTML;
-            btnCopiar.innerHTML = '✅ Copiado com Tabelas!';
-            btnCopiar.style.background = '#16a34a';
-            setTimeout(() => { btnCopiar.innerHTML = txtOriginal; btnCopiar.style.background = ''; }, 3000);
-
-        } catch (err) {
-            showError(`O sistema bloqueou a cópia em lote: ${err.message}. Use o botão de Baixar Arquivo.`);
-        }
-    });
-
-    // COMPONENTE EXTRA: GERAÇÃO DE ARQUIVO WEB COMPILADO
-    btnBaixarHTML.addEventListener('click', async () => {
-        try {
-            await atualizarPreview();
-            const htmlConteudo = previewDiv.innerHTML;
-            const estilosDocumento = `
-                <style>
-                    @page { size: A4; margin: 3cm 2cm 2cm 3cm; }
-                    body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000000; line-height: 1.5; margin: 3cm 2cm 2cm 3cm; }
-                    p { text-align: justify; text-indent: 1.5cm; margin: 0; }
-                    h1, h2, h3 { font-weight: bold; color: #000000; text-align: left; margin-top: 24pt; margin-bottom: 12pt; }
-                    h1 { text-transform: uppercase; }
-                    table { border-collapse: collapse; width: 100%; border-top: 2px solid #000000; border-bottom: 2px solid #000000; margin: 12pt 0; }
-                    th { border-bottom: 1px solid #000000; padding: 6px 8px; text-align: left; }
-                    td { padding: 6px 8px; text-align: left; }
-                    blockquote { margin-left: 4cm; font-size: 10pt; line-height: 1; text-align: justify; }
-                    .header-doc { text-align: center; margin-bottom: 2rem; white-space: pre-wrap; }
-                    .page-break { page-break-after: always; }
-                    hr { border: none; border-top: 1px solid #94a3b8; margin: 18pt 0; }
-                </style>
-            `;
-            const arquivoFinal = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatorio_Florestal_ABNT</title>${estilosDocumento}</head><body>${arquivoConteudo = htmlConteudo}</body></html>`;
-            
-            const blob = new Blob([arquivoFinal], { type: 'text/html' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'relatorio_florestal.html';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } catch (err) {
-            showError(`Erro ao baixar arquivo: ${err.message}`);
-        }
-    });
-
-    document.getElementById('btnVisualizar').addEventListener('click', atualizarPreview);
-    document.getElementById('btnPDF').addEventListener('click', () => {
-        atualizarPreview().then(() => {
-            const folha = document.getElementById('folha-abnt');
-            folha.innerHTML = previewDiv.innerHTML;
-            folha.style.display = 'block';
-            setTimeout(() => { window.print(); folha.style.display = 'none'; }, 100);
         });
     });
 
-    window.addEventListener('load', () => {
-        headerInput.value = `UNIVERSIDADE DO ESTADO DO PARÁ - UEPA\nCAMPUS UNIVERSITÁRIO DE CASTANHAL\nCURSO DE ENGENHARIA FLORESTAL\nALUNO: EVANDRO MAIA NEVES`;
-        bodyInput.value = `# PLANO DE PESQUISA\n\n## IDENTIFICAÇÃO DO TRABALHO E DA AUTORIA\n\nEste é um parágrafo no padrão estrito da ABNT. Note que a linha divisória abaixo não vai quebrar a página.\n\n---\n\n## DADOS SOBRE A PESQUISA\n\n**Tema:** A ecologia de manguezal na cidade de Curuçá é de extrema relevância biológica.\n\n[QUEBRA]\n\n# NOVA SEÇÃO EM FOLHA LIMPA\n\nComo usei a tag customizada, este texto começa no topo de uma nova página no PDF.`;
-        atualizarPreview();
+    // Modais
+    function openConfigModal() { document.getElementById('configModal').style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openExcelModal() { document.getElementById('excelData').value = ''; document.getElementById('tableTitle').value = ''; document.getElementById('tableSource').value = ''; document.getElementById('excelModal').style.display = 'flex'; }
+    function insertExcelTable() {
+        const data = document.getElementById('excelData').value.trim(); const titulo = document.getElementById('tableTitle').value.trim() || 'Sem título'; const fonte = document.getElementById('tableSource').value.trim() || 'Elaborado pelo autor';
+        let md = `\n\n<div class="abnt-tabela-container">\n<span class="abnt-table-title">${titulo}</span>\n\n`;
+        if (!data) { md += `| Coluna 1 | Coluna 2 |\n| --- | --- |\n| Dado 1 | Dado 2 |\n\n`; } 
+        else {
+            try { const rows = data.split('\n'); const h = rows[0].split('\t'); md += `| ${h.join(' | ')} |\n| ${h.map(()=>'---').join(' | ')} |\n`;
+                for (let i = 1; i < rows.length; i++) { if(rows[i].trim()) md += `| ${rows[i].split('\t').join(' | ')} |\n`; } md += '\n';
+            } catch (e) { alert('Erro na formatação da tabela.'); closeModal('excelModal'); return; }
+        }
+        md += `<span class="abnt-table-source">Fonte: ${fonte}</span>\n</div>\n\n`;
+        closeModal('excelModal'); insertAtCursor(md, ''); showToast('Tabela ABNT inserida!');
+    }
+
+    bodyInput.addEventListener('paste', (e) => {
+        const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+        if (pasteData && pasteData.includes('\t') && pasteData.includes('\n')) {
+            const lines = pasteData.trim().split('\n');
+            if (lines.length > 1 && lines[0].includes('\t')) {
+                e.preventDefault();
+                try { let md = '\n\n'; const h = lines[0].split('\t'); md += `| ${h.join(' | ')} |\n| ${h.map(()=>'---').join(' | ')} |\n`;
+                    for (let i=1; i<lines.length; i++) { if(lines[i].trim()) md += `| ${lines[i].split('\t').join(' | ')} |\n`; }
+                    insertAtCursor(md + '\n', ''); showToast('Tabela convertida! (Use o botão se quiser Título/Fonte)');
+                } catch (err) { insertAtCursor(pasteData, ''); }
+            }
+        }
     });
+
+    function openImageModal() { document.getElementById('imageFileInput').value = ''; document.getElementById('fileChosenText').innerText = 'Nenhuma selecionada'; document.getElementById('fileChosenText').style.color = ''; document.getElementById('imageUrlInput').value = ''; document.getElementById('imageCaption').value = ''; document.getElementById('imageSource').value = ''; document.getElementById('imageSize').value = 'auto'; document.getElementById('imageModal').style.display = 'flex'; }
+    let currentBase64 = null;
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) { const reader = new FileReader(); reader.onload = function(e) { currentBase64 = e.target.result; document.getElementById('fileChosenText').innerText = file.name; document.getElementById('fileChosenText').style.color = 'var(--blue-action)'; document.getElementById('imageUrlInput').value = ''; }; reader.readAsDataURL(file); }
+    }
+    function insertImageToEditor() {
+        const legenda = document.getElementById('imageCaption').value.trim() || 'Sem legenda'; const fonteRaw = document.getElementById('imageSource').value.trim() || 'Elaborado pelo autor'; const urlInput = document.getElementById('imageUrlInput').value.trim(); const size = document.getElementById('imageSize').value;
+        let finalImageRef = '';
+        if (currentBase64) { localImageCounter++; const virtualId = `img-base64-upload-${localImageCounter}`; localImageRegistry[virtualId] = currentBase64; finalImageRef = virtualId; currentBase64 = null; } 
+        else if (urlInput) { finalImageRef = urlInput; } else { alert("Escolha uma imagem da galeria ou cole um link!"); return; }
+        const fonteComTamanho = `${fonteRaw} |size:${size}`; const mdImageTag = `\n\n![${legenda}](${finalImageRef} "${fonteComTamanho}")\n\n`;
+        closeModal('imageModal'); insertAtCursor(mdImageTag, ''); showToast('Imagem ABNT inserida!');
+    }
 </script>
 </body>
 </html>
