@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gerador de Relatórios ABNT - Master</title>
+    <title>Gerador de Relatórios ABNT - Master V10</title>
     
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
@@ -14,6 +14,9 @@
             --bg-color: #ffffff; --text-primary: #111827; --text-secondary: #4b5563;
             --accent: #0f172a; --accent-hover: #334155; --border: #e5e7eb;
             --surface-gray: #f9fafb; --blue-action: #2563eb; --blue-light: #eff6ff;
+            /* NOVO: V10 - Variáveis de Paginação */
+            --abnt-counter-start: 0;
+            --abnt-visible-from: 1;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -48,9 +51,15 @@
 
         /* BARRA INFERIOR */
         .bottom-action-bar { position: absolute; bottom: 0; left: 0; width: 100%; background: var(--bg-color); border-top: 1px solid var(--border); box-shadow: 0 -4px 20px rgba(0,0,0,0.05); padding: 10px 15px 20px 15px; display: flex; flex-direction: column; gap: 10px; z-index: 10; }
-        .tools-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .tools-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; align-items: center; }
         .tools-scroll::-webkit-scrollbar { display: none; }
-        .tool-btn { display: flex; align-items: center; justify-content: center; height: 40px; min-width: 44px; border-radius: 8px; background: var(--surface-gray); color: var(--accent); font-size: 1.2rem; flex-shrink: 0; border: 1px solid transparent; transition: 0.1s; }
+        
+        /* NOVO: V10 - Container de Ferramenta com Tooltip Badge */
+        .tool-wrapper { position: relative; display: flex; align-items: center; }
+        .help-badge { position: absolute; top: -5px; right: -5px; background: #6b7280; color: white; width: 16px; height: 16px; border-radius: 50%; font-size: 0.6rem; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; border: 1px solid white; z-index: 2; transition: 0.2s; }
+        .help-badge:hover { background: var(--blue-action); transform: scale(1.1); }
+
+        .tool-btn { display: flex; align-items: center; justify-content: center; height: 40px; min-width: 44px; border-radius: 8px; background: var(--surface-gray); color: var(--accent); font-size: 1.2rem; flex-shrink: 0; border: 1px solid transparent; transition: 0.1s; position: relative; }
         .tool-btn:active { background: #e5e7eb; border-color: var(--border); }
         .tool-btn.text-btn { padding: 0 12px; font-size: 0.9rem; font-weight: 600; gap: 6px; }
         .btn-generate { width: 100%; background: var(--accent); color: white; font-size: 1rem; font-weight: 600; padding: 14px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
@@ -65,7 +74,7 @@
         .modal-header h3 { font-size: 1.1rem; color: var(--accent); display: flex; align-items: center; gap: 8px; }
         
         .modal label { font-size: 0.8rem; font-weight: bold; color: var(--text-secondary); margin-bottom: 4px; display: block; }
-        .modal textarea, .modal input[type="text"], .modal select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 0.9rem; margin-bottom: 12px; }
+        .modal textarea, .modal input[type="text"], .modal input[type="number"], .modal select { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 0.9rem; margin-bottom: 12px; }
         .modal textarea:focus, .modal input:focus, .modal select:focus { border-color: var(--blue-action); outline: none; }
         
         .modal-actions { display: flex; gap: 10px; margin-top: 5px; }
@@ -74,7 +83,7 @@
         .btn-insert { background: var(--blue-action); color: white; }
 
         /* Toggle Switch */
-        .switch-container { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .switch-container { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
         .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
@@ -89,34 +98,53 @@
 
         /* MODO PREVIEW / FOLHA ABNT */
         .view-preview { display: none; flex-direction: column; height: 100%; width: 100%; background: #e2e8f0; position: absolute; top: 0; left: 0; z-index: 50; }
-        .preview-header { background: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .preview-header { background: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; gap: 10px;}
         .btn-back { display: flex; align-items: center; gap: 6px; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); }
+        
+        .preview-actions { display: flex; gap: 8px; }
         .btn-print { background: var(--blue-action); color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        /* NOVO: V10 - Botão Exportar Word */
+        .btn-word { background: #2563eb; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 6px; background-color: #1d4ed8; }
+
         .preview-scroll { flex: 1; overflow-y: auto; padding: 20px 10px; display: flex; justify-content: center; align-items: flex-start; }
         .a4-virtual { background: white; width: 100%; max-width: 21cm; padding: 25px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; }
 
         /* --- ESTILIZAÇÃO ESTRITA ABNT --- */
         .abnt-doc { 
             font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; word-wrap: break-word; 
-            counter-reset: figuraCounter tabelaCounter;
+            counter-reset: figuraCounter tabelaCounter abntPage var(--abnt-counter-start); 
         }
         
         .abnt-doc p { text-align: justify; text-indent: 1.5cm; margin: 0; }
+        /* NOVO: V10 - Melhoria em Títulos */
         .abnt-doc h1, .abnt-doc h2, .abnt-doc h3 { text-align: left; text-indent: 0; font-size: 12pt; font-weight: bold; margin-top: 24pt; margin-bottom: 12pt; }
         .abnt-doc h1 { text-transform: uppercase; }
         .abnt-doc blockquote { margin-left: 4cm; font-size: 10pt; line-height: 1; text-align: justify; margin-top: 12pt; margin-bottom: 12pt; }
         .abnt-doc blockquote p { text-indent: 0; }
         .abnt-doc ul, .abnt-doc ol { margin-left: 2cm; margin-top: 6pt; margin-bottom: 6pt; }
         .abnt-doc hr { border: none; border-top: 1px solid #999; margin: 18pt 0; }
-        .abnt-doc .page-break { page-break-after: always; margin: 20px 0; border-top: 2px dashed #ccc; }
+        
+        /* NOVO: V10 - Sistema de Contagem e Quebra de Página Dinâmica */
+        .abnt-doc .page-break { page-break-after: always; margin: 20px 0; border-top: 2px dashed #ccc; position: relative; counter-increment: abntPage; }
         
         .abnt-doc .header-doc { margin-bottom: 24pt; }
         .abnt-doc .header-doc p, .abnt-doc .header-doc h1 { text-align: center; text-indent: 0; margin: 0; font-weight: normal; text-transform: none; font-size: 12pt; }
         .abnt-doc .header-doc strong { font-weight: bold; }
         
+        /* NOVO: V10 - Resumo ABNT */
+        .abnt-resumo { margin-top: 24pt; margin-bottom: 24pt; }
+        .abnt-resumo p { text-indent: 0 !important; }
+
+        /* NOVO: V10 - Sumário ABNT */
+        .abnt-sumario { width: 100%; margin-bottom: 24pt; }
+        .abnt-sumario-item { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6pt; }
+        .sumario-title { background: white; padding-right: 5px; z-index: 1; }
+        .sumario-dots { flex-grow: 1; border-bottom: 2px dotted #000; margin: 0 5px; position: relative; top: -4px; z-index: 0; }
+        .sumario-page { background: white; padding-left: 5px; z-index: 1; font-weight: normal !important; }
+
         /* Tabelas e Imagens */
         .table-wrapper { width: 100%; overflow-x: auto; margin: 12pt 0; }
-        .abnt-doc table { border-collapse: collapse; width: 100%; min-width: 400px; border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 0; }
+        .abnt-doc table { border-collapse: collapse; width: 100%; min-width: 400px; border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 0; page-break-inside: avoid; }
         .abnt-doc th { border-bottom: 1px solid #000; padding: 6px; text-align: left; font-weight: bold; }
         .abnt-doc td { padding: 6px; text-align: left; border: none; }
         .abnt-tabela-container { margin: 18pt 0; page-break-inside: avoid; }
@@ -137,22 +165,21 @@
 
         /* --- NUMERAÇÃO DE PÁGINAS ABNT --- */
         .page-number-indicator { display: none; position: absolute; top: 3cm; right: 2cm; font-size: 10pt; color: #999; }
-        .enable-page-numbers .page-number-indicator { display: block; }
         
         @page { size: A4; margin: 3cm 2cm 2cm 3cm; }
         
-        /* CSS Avançado para Numeração (Funciona dependendo da impressora/navegador) */
+        /* NOVO: V10 - CSS Avançado de Impressão (Correção de Fundo e Acessibilidade) */
         @media print {
             body * { visibility: hidden; }
             .view-preview, .view-preview * { visibility: visible; }
             .view-preview { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: transparent; }
             .preview-header { display: none; }
             .preview-scroll { padding: 0; overflow: visible; display: block; }
-            .a4-virtual { padding: 0; box-shadow: none; max-width: none; border: none; }
+            .a4-virtual { padding: 0; box-shadow: none; max-width: none; border: none; background: transparent; color: black; }
             .abnt-doc .page-break { border-top: none; margin: 0; }
-            .page-number-indicator { display: none; } /* Oculta o indicador visual falso no papel */
+            .page-number-indicator { display: none; } 
             
-            /* Tenta forçar a numeração no canto superior direito caso o browser suporte @page bem */
+            /* Tenta usar o recurso de Header nativo do navegador via CSS (Depende do Browser) */
             .enable-page-numbers {
                 @page {
                     @top-right { content: counter(page); font-size: 10pt; font-family: 'Times New Roman'; }
@@ -175,10 +202,12 @@
 <!-- MODO EDITOR -->
 <div class="view-editor" id="editorView">
     <header class="top-bar">
-        <h1><i class="ri-article-line"></i> ABNT Express <span>V9</span></h1>
+        <h1><i class="ri-article-line"></i> ABNT Express <span>V10</span></h1>
         <div class="actions-top">
             <span class="user-tag">UEPA | Maia</span>
-            <button class="btn-config" onclick="openConfigModal()" title="Configurações do Documento"><i class="ri-settings-3-line"></i></button>
+            <!-- NOVO: V10 - Tooltip Ajuda Geral -->
+            <button class="btn-config" onclick="showHelp('geral')" title="Dúvidas e Ajuda" aria-label="Ajuda"><i class="ri-question-line"></i></button>
+            <button class="btn-config" onclick="openConfigModal()" title="Configurações do Documento" aria-label="Configurações"><i class="ri-settings-3-line"></i></button>
         </div>
     </header>
 
@@ -205,36 +234,82 @@
 
     <nav class="bottom-action-bar">
         <div class="tools-scroll">
-            <button class="tool-btn" data-action="bold" title="Negrito"><i class="ri-bold"></i></button>
-            <button class="tool-btn" data-action="italic" title="Itálico"><i class="ri-italic"></i></button>
-            <button class="tool-btn" data-action="h1" title="Título"><i class="ri-heading"></i></button>
-            <button class="tool-btn" data-action="quote" title="Citação ABNT"><i class="ri-double-quotes-r"></i></button>
-            <button class="tool-btn" data-action="break" title="Nova Folha"><i class="ri-page-separator"></i></button>
+            <button class="tool-btn" data-action="bold" title="Negrito" aria-label="Negrito"><i class="ri-bold"></i></button>
+            <button class="tool-btn" data-action="italic" title="Itálico" aria-label="Itálico"><i class="ri-italic"></i></button>
+            <button class="tool-btn" data-action="h1" title="Título" aria-label="Título"><i class="ri-heading"></i></button>
+            <button class="tool-btn" data-action="quote" title="Citação ABNT" aria-label="Citação"><i class="ri-double-quotes-r"></i></button>
+            
+            <div class="tool-wrapper">
+                <button class="tool-btn" data-action="break" title="Nova Folha" aria-label="Nova Folha"><i class="ri-page-separator"></i></button>
+                <div class="help-badge" onclick="showHelp('quebra')" title="Ajuda sobre Quebra de Página">?</div>
+            </div>
             
             <div style="width: 2px; background: var(--border); margin: 4px; border-radius: 2px;"></div>
             
-            <!-- NOVO BOTÃO NOTA DE RODAPÉ -->
-            <button class="tool-btn" onclick="insertFootnote()" title="Nota de Rodapé" style="font-size: 0.95rem; font-weight: bold; color: var(--blue-action);">
-                [ ¹ ]
-            </button>
+            <!-- NOVO: V10 - Botões Sumário e Resumo -->
+            <div class="tool-wrapper">
+                <button class="tool-btn text-btn" onclick="generateSumario()" title="Gerar Sumário ABNT" style="color: #ea580c;">
+                    <i class="ri-list-ordered"></i> Sumário
+                </button>
+                <div class="help-badge" onclick="showHelp('sumario')" title="Ajuda sobre Sumário">?</div>
+            </div>
+
+            <div class="tool-wrapper">
+                <button class="tool-btn text-btn" onclick="insertResumo()" title="Inserir Resumo ABNT" style="color: #6366f1;">
+                    <i class="ri-file-text-line"></i> Resumo
+                </button>
+                <div class="help-badge" onclick="showHelp('resumo')" title="Ajuda sobre Resumo">?</div>
+            </div>
+
+            <div style="width: 2px; background: var(--border); margin: 4px; border-radius: 2px;"></div>
+
+            <div class="tool-wrapper">
+                <button class="tool-btn" onclick="insertFootnote()" title="Nota de Rodapé" style="font-size: 0.95rem; font-weight: bold; color: var(--blue-action);">
+                    [ ¹ ]
+                </button>
+                <div class="help-badge" onclick="showHelp('rodape')" title="Ajuda sobre Notas">?</div>
+            </div>
             
             <div style="width: 2px; background: var(--border); margin: 4px; border-radius: 2px;"></div>
 
-            <button class="tool-btn text-btn" onclick="openExcelModal()" title="Importar Tabela ABNT">
-                <i class="ri-table-2"></i> Tabela
-            </button>
-            <button class="tool-btn text-btn" onclick="openImageModal()" style="color: #059669;" title="Inserir Imagem ABNT">
-                <i class="ri-image-add-fill"></i> Imagem
-            </button>
+            <div class="tool-wrapper">
+                <button class="tool-btn text-btn" onclick="openExcelModal()" title="Importar Tabela ABNT">
+                    <i class="ri-table-2"></i> Tabela
+                </button>
+                <div class="help-badge" onclick="showHelp('tabela')" title="Ajuda sobre Tabela">?</div>
+            </div>
+
+            <div class="tool-wrapper">
+                <button class="tool-btn text-btn" onclick="openImageModal()" style="color: #059669;" title="Inserir Imagem ABNT">
+                    <i class="ri-image-add-fill"></i> Imagem
+                </button>
+                <div class="help-badge" onclick="showHelp('imagem')" title="Ajuda sobre Imagens">?</div>
+            </div>
         </div>
 
         <button class="btn-generate" onclick="generateDocument()">
-            <i class="ri-file-pdf-2-fill"></i> Gerar PDF ABNT
+            <i class="ri-file-pdf-2-fill"></i> Gerar PDF / Exportar ABNT
         </button>
     </nav>
 </div>
 
-<!-- MODAL CONFIGURAÇÕES (NUMERAÇÃO DE PÁGINA) -->
+<!-- NOVO: V10 - MODAL DE AJUDA / EDUCAÇÃO ABNT -->
+<div class="overlay" id="helpModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="ri-book-open-line"></i> Regras ABNT & Dicas</h3>
+            <button onclick="closeModal('helpModal')" style="font-size: 1.2rem; color: #999;"><i class="ri-close-line"></i></button>
+        </div>
+        <div id="helpContent" style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 15px;">
+            <!-- Conteúdo dinâmico -->
+        </div>
+        <div class="modal-actions">
+            <button class="btn-modal btn-insert" onclick="closeModal('helpModal')">Entendi</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CONFIGURAÇÕES (NUMERAÇÃO DE PÁGINA) - ATUALIZADO V10 -->
 <div class="overlay" id="configModal">
     <div class="modal">
         <div class="modal-header">
@@ -244,13 +319,25 @@
         
         <div class="switch-container">
             <div>
-                <strong style="display:block; font-size:0.9rem;">Numeração de Páginas</strong>
-                <span style="font-size:0.75rem; color:var(--text-secondary);">Exibir número no canto superior direito (ABNT).</span>
+                <strong style="display:block; font-size:0.9rem;">Habilitar Numeração de Páginas</strong>
+                <span style="font-size:0.75rem; color:var(--text-secondary);">Exigirá marcar "Cabeçalho/Rodapé" na impressão.</span>
             </div>
             <label class="switch">
                 <input type="checkbox" id="togglePageNumbers">
                 <span class="slider"></span>
             </label>
+        </div>
+
+        <!-- NOVO: V10 - Inputs de Numeração Inteligente -->
+        <div id="pageConfigArea" style="display: none; background: var(--surface-gray); padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+            <label>Páginas Pré-Textuais (Capa, Sumário...)</label>
+            <span style="font-size:0.7rem; color:var(--text-secondary); display:block; margin-bottom:4px;">Define o valor invisível inicial da contagem.</span>
+            <input type="number" id="preTextPages" value="0" min="0">
+            
+            <label>Mostrar número a partir da página:</label>
+            <span style="font-size:0.7rem; color:var(--text-secondary); display:block; margin-bottom:4px;">Geralmente a Introdução (ex: 2 ou 3).</span>
+            <input type="number" id="startVisiblePage" value="1" min="1">
+            <button style="width:100%; text-align:right; font-size:0.8rem; color:var(--blue-action); margin-top:5px;" onclick="showHelp('paginacao')"><i class="ri-question-line"></i> Entender regra ABNT</button>
         </div>
 
         <div class="modal-actions" style="margin-top: 15px;">
@@ -259,7 +346,7 @@
     </div>
 </div>
 
-<!-- MODAL TABELA E IMAGEM (Reaproveitados da V8) -->
+<!-- MODAL TABELA E IMAGEM (Reaproveitados da V8/V9) -->
 <div class="overlay" id="excelModal">
     <div class="modal">
         <div class="modal-header"><h3><i class="ri-table-2"></i> Inserir Tabela</h3><button onclick="closeModal('excelModal')"><i class="ri-close-line"></i></button></div>
@@ -300,19 +387,24 @@
     </div>
 </div>
 
-<!-- PREVIEW / PDF -->
+<!-- PREVIEW / PDF / WORD -->
 <div class="view-preview" id="previewView">
     <div class="preview-header">
         <button class="btn-back" onclick="backToEditor()">
-            <i class="ri-arrow-left-line"></i> Voltar à edição
+            <i class="ri-arrow-left-line"></i> Voltar
         </button>
-        <button class="btn-print" onclick="window.print()">
-            <i class="ri-printer-fill"></i> Imprimir / PDF
-        </button>
+        <div class="preview-actions">
+            <!-- NOVO: V10 - Botão Exportar Word -->
+            <button class="btn-word" onclick="exportToWord()">
+                <i class="ri-file-word-fill"></i> Word (.doc)
+            </button>
+            <button class="btn-print" onclick="window.print()">
+                <i class="ri-printer-fill"></i> PDF
+            </button>
+        </div>
     </div>
     <div class="preview-scroll">
         <div class="a4-virtual abnt-doc" id="renderArea">
-            <!-- Indicador visual apenas para avisar que a numeração está ativa -->
             <div class="page-number-indicator">#</div>
         </div>
     </div>
@@ -328,13 +420,22 @@
     const renderArea = document.getElementById('renderArea');
     const toast = document.getElementById('toast');
     const chkPageNumbers = document.getElementById('togglePageNumbers');
+    
+    // NOVO: V10 - Elementos Config Paginação
+    const pageConfigArea = document.getElementById('pageConfigArea');
+    const preTextPagesInput = document.getElementById('preTextPages');
+    const startVisiblePageInput = document.getElementById('startVisiblePage');
+
+    chkPageNumbers.addEventListener('change', (e) => {
+        pageConfigArea.style.display = e.target.checked ? 'block' : 'none';
+    });
 
     const localImageRegistry = {};
     let localImageCounter = 0;
 
     window.addEventListener('load', () => {
         headerInput.value = `**UNIVERSIDADE DO ESTADO DO PARÁ - UEPA**\nCAMPUS UNIVERSITÁRIO DE CASTANHAL\nCURSO DE ENGENHARIA FLORESTAL\n_ALUNO: EVANDRO MAIA NEVES_`;
-        bodyInput.value = `# Introdução\n\nEste é um texto de exemplo para demonstrar o sistema de notas de rodapé.\n\nA Amazônia é um domínio morfoclimático de extrema importância. De acordo com os autores, sua biodiversidade é incomparável e precisa ser estudada a fundo [^1]. \n\nAlém disso, as políticas públicas florestais impactam diretamente a economia local [^2].\n\n[^1]: Informação retirada do artigo "Ecologia Neotropical", Maia (2026).\n\n[^2]: É importante ressaltar que a economia também depende do manejo sustentável.`;
+        bodyInput.value = `# Introdução\n\nEste é um texto de exemplo para demonstrar o sistema ABNT Express V10.\n\nA Amazônia é um domínio morfoclimático de extrema importância. De acordo com os autores, sua biodiversidade é incomparável [^1]. \n\nAlém disso, as políticas públicas florestais impactam diretamente a economia local [^2].\n\n[^1]: Informação retirada do artigo "Ecologia Neotropical", Maia (2026).\n\n[^2]: É importante ressaltar que a economia também depende do manejo sustentável.`;
         adjustHeight(headerInput); adjustHeight(bodyInput);
     });
 
@@ -361,28 +462,123 @@
     }
 
     // ==========================================
-    // SISTEMA DE NOTAS DE RODAPÉ (Lógica Nova)
+    // SISTEMA DE NOTAS DE RODAPÉ
     // ==========================================
     function insertFootnote() {
         const text = bodyInput.value;
-        // Encontra o maior número de nota já existente
         const regex = /\[\^(\d+)\]:/g;
-        let maxId = 0;
-        let match;
+        let maxId = 0; let match;
         while ((match = regex.exec(text)) !== null) {
             const id = parseInt(match[1]);
             if (id > maxId) maxId = id;
         }
         const nextId = maxId + 1;
-
-        // Insere a referência no local do cursor
         insertAtCursor(`[^${nextId}]`, '');
-
-        // Joga a definição pro final do texto
         bodyInput.value += `\n\n[^${nextId}]: Digite a explicação da nota aqui.`;
         adjustHeight(bodyInput);
-        
         showToast(`Nota [${nextId}] inserida! <br><small>Edite o conteúdo no final do texto.</small>`, 4000);
+    }
+
+    // NOVO: V10 - GERADOR DE SUMÁRIO ABNT
+    function generateSumario() {
+        const text = bodyInput.value;
+        const regex = /^(#{1,3})\s+(.+)$/gm;
+        let match;
+        let sumarioHTML = `<div class="abnt-sumario">\n<h2 style="text-align:center; text-indent:0; margin-bottom: 24pt;">SUMÁRIO</h2>\n\n`;
+        
+        let countH1 = 0, countH2 = 0, countH3 = 0;
+        let encontrou = false;
+        
+        while ((match = regex.exec(text)) !== null) {
+            encontrou = true;
+            const level = match[1].length;
+            const title = match[2];
+            let num = ''; let style = '';
+            
+            if (level === 1) {
+                countH1++; countH2 = 0; countH3 = 0; num = `${countH1}`; style = 'font-weight: bold; text-transform: uppercase;';
+            } else if (level === 2) {
+                countH2++; countH3 = 0; num = `${countH1}.${countH2}`; style = 'text-transform: uppercase;';
+            } else if (level === 3) {
+                countH3++; num = `${countH1}.${countH2}.${countH3}`; style = 'font-weight: bold;';
+            }
+            
+            sumarioHTML += `<div class="abnt-sumario-item" style="${style}">
+                <span class="sumario-title">${num} ${title}</span>
+                <span class="sumario-dots"></span>
+                <span class="sumario-page">XX</span>
+            </div>\n`;
+        }
+        
+        if (!encontrou) { alert("Nenhum título (# Título) encontrado para gerar o sumário!"); return; }
+        
+        sumarioHTML += `</div>\n\n[QUEBRA]\n\n`;
+        insertAtCursor(sumarioHTML, '');
+        showToast('Estrutura de Sumário gerada!');
+    }
+
+    // NOVO: V10 - INSERIR RESUMO
+    function insertResumo() {
+        const resumoBlock = `[QUEBRA]\n\n<div class="abnt-resumo">\n<h2 style="text-align:center; text-indent:0; margin-bottom: 12pt;">RESUMO</h2>\n\n<p style="text-indent: 0; text-align: justify; margin-bottom: 12pt;">Este espaço é destinado ao resumo. Segundo a ABNT NBR 6028, deve ser composto por uma sequência de frases concisas e objetivas, em parágrafo único, sem recuo de primeira linha, justificado. Deve conter de 150 a 500 palavras.</p>\n\n<p style="text-indent: 0;"><strong>Palavras-chave:</strong> Primeira. Segunda. Terceira.</p>\n</div>\n\n[QUEBRA]\n\n`;
+        insertAtCursor(resumoBlock, '');
+        showToast('Bloco de Resumo ABNT inserido!');
+    }
+
+    // NOVO: V10 - EXPORTAÇÃO PARA WORD NATIVA
+    function exportToWord() {
+        const headerDoc = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Documento ABNT - Exportado</title>";
+        
+        // CSS mapeado especificamente para que o Word entenda as margens e estilos ABNT
+        const styleDoc = `<style>
+            @page WordSection1 { size: 21cm 29.7cm; margin: 3cm 2cm 2cm 3cm; mso-header-margin: 35.4pt; mso-footer-margin: 35.4pt; mso-paper-source: 0; }
+            div.WordSection1 { page: WordSection1; }
+            body, p, span, td, div { font-family: 'Times New Roman', Times, serif; font-size: 12pt; }
+            p { text-align: justify; text-indent: 1.5cm; margin: 0 0 0 0; line-height: 150%; }
+            h1, h2, h3 { font-size: 12pt; font-weight: bold; margin-top: 24pt; margin-bottom: 12pt; text-align: left; text-indent: 0; }
+            h1 { text-transform: uppercase; }
+            .page-break { page-break-before: always; mso-break-type: page-break; }
+            .abnt-figure { text-align: center; margin: 18pt 0; }
+            .abnt-figure img { width: 400px; }
+            .abnt-caption, .abnt-source { text-align: left; display: block; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #000; padding: 5px; }
+            th { border-bottom: 2px solid #000; border-top: 2px solid #000; }
+            blockquote { margin-left: 4cm; font-size: 10pt; line-height: 100%; text-align: justify; }
+            .abnt-sumario-item { display: block; margin-bottom: 6pt; }
+            .sumario-title { float: left; } .sumario-page { float: right; }
+            .abnt-footnote-text { font-size: 10pt; text-indent: 0; line-height: 100%; margin-bottom: 4pt; }
+        </style></head><body><div class="WordSection1">`;
+        
+        const contentDoc = document.getElementById('renderArea').innerHTML;
+        const footerDoc = "</div></body></html>";
+        const sourceHTML = headerDoc + styleDoc + contentDoc + footerDoc;
+        
+        const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'Trabalho_ABNT.doc';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Download do Word iniciado!', 4000);
+    }
+
+    // NOVO: V10 - SISTEMA DE AJUDA
+    const helpContents = {
+        'geral': "<b>ABNT Express V10</b><br><br>Bem-vindo! Este sistema converte Markdown simples em um layout pronto para ABNT.<br>- Use as ferramentas da barra inferior.<br>- Gere o PDF ou exporte para Word quando terminar.",
+        'quebra': "<b>Quebra de Página ABNT</b><br><br>As quebras de página separam seções principais (Sumário, Introdução, Capítulos).<br><br>Títulos Primários (ex: <b>1 INTRODUÇÃO</b>) sempre devem iniciar em uma página nova.",
+        'sumario': "<b>Sumário ABNT (NBR 6027)</b><br><br>O Sumário lista os capítulos na ordem em que aparecem. ABNT exige alinhamento das margens, pontilhados até a página e indicação do nível (negrito, maiúsculo).<br><br><i>Use Títulos com <b>#</b> no texto antes de gerar o Sumário automático.</i>",
+        'resumo': "<b>Resumo ABNT (NBR 6028)</b><br><br>Deve conter 150 a 500 palavras (trabalhos acadêmicos), ser escrito em parágrafo único (sem recuo de 1,5cm na primeira linha) e alinhado de forma Justificada. Logo abaixo, as palavras-chave separadas por ponto.",
+        'rodape': "<b>Notas de Rodapé ABNT (NBR 10520)</b><br><br>São digitadas dentro da margem, separadas do texto por um traço de 3cm contínuo, com fonte menor (10pt) e sem recuo de parágrafo. O sistema organiza tudo no fim do documento para você.",
+        'tabela': "<b>Tabelas ABNT (IBGE)</b><br><br>Devem ter Título (em cima) e Fonte (embaixo). As laterais (bordas esquerda/direita) <b>devem ser abertas</b> (sem linha vertical). O sistema já formata automaticamente ao inserir.",
+        'imagem': "<b>Figuras ABNT</b><br><br>Imagens, gráficos ou mapas são 'Figuras'. Devem possuir a indicação do tipo e número (Figura 1 – Título) na parte superior, e a Fonte na parte inferior.",
+        'paginacao': "<b>Numeração de Páginas (NBR 14724)</b><br><br>Todas as folhas a partir da Folha de Rosto são contadas, mas os números <b>só aparecem</b> a partir da primeira folha da parte textual (Introdução).<br>- Devem ficar no canto superior direito a 2cm das bordas.<br>- <i>Dica: O App ajusta a contagem via CSS para o Word/PDF.</i>"
+    };
+
+    function showHelp(topic) {
+        document.getElementById('helpContent').innerHTML = helpContents[topic] || "Ajuda não encontrada.";
+        document.getElementById('helpModal').style.display = 'flex';
     }
 
     marked.setOptions({ breaks: true });
@@ -391,23 +587,22 @@
         let markdown = bodyInput.value;
         const header = headerInput.value;
 
-        // 1. Intercepta as Notas de Rodapé (Extração)
+        // 1. Intercepta Notas de Rodapé
         let footnotes = [];
         const regexDef = /^\[\^(\d+)\]:\s*(.+)$/gm;
         markdown = markdown.replace(regexDef, (match, id, text) => {
             footnotes.push({ id, text });
-            return ''; // Remove a definição bruta do markdown principal
+            return ''; 
         });
 
-        // Intercepta as Referências Inline
         const regexInline = /\[\^(\d+)\]/g;
         markdown = markdown.replace(regexInline, '<a href="#fn$1" class="abnt-footnote-ref">[$1]</a>');
 
-        // 2. Converte Quebras e Marcadores Padrão
+        // 2. Converte Quebras
         let processedMarkdown = markdown.replace(/\[QUEBRA\]/gi, '<div class="page-break"></div>');
         let bodyHtml = await marked.parse(processedMarkdown);
 
-        // 3. Pós-processamento de Tabelas e Imagens
+        // 3. Pós-processamento
         bodyHtml = bodyHtml.replace(/<table>/g, '<div class="table-wrapper"><table>').replace(/<\/table>/g, '</table></div>');
         
         bodyHtml = bodyHtml.replace(/<img src="([^"]+)" alt="([^"]*)"(?: title="([^"]*)")?\s*\/?>/g, (match, src, alt, title) => {
@@ -422,15 +617,11 @@
             return `<figure class="abnt-figure"><figcaption class="abnt-caption">${legenda}</figcaption><img src="${srcFinal}" alt="${legenda}" style="${sizeCss}" /><figcaption class="abnt-source">${fonte}</figcaption></figure>`;
         });
 
-        // 4. Constrói a Seção ABNT de Notas no Final do Documento
+        // 4. Constrói Rodapé
         if (footnotes.length > 0) {
-            // Ordena as notas pelo ID caso o usuário tenha misturado
             footnotes.sort((a, b) => parseInt(a.id) - parseInt(b.id));
-            
             let notesHtml = '<div class="abnt-footnotes-container"><hr class="abnt-footnote-divider" />';
-            footnotes.forEach(note => {
-                notesHtml += `<p class="abnt-footnote-text" id="fn${note.id}"><sup>${note.id}</sup> ${note.text}</p>`;
-            });
+            footnotes.forEach(note => { notesHtml += `<p class="abnt-footnote-text" id="fn${note.id}"><sup>${note.id}</sup> ${note.text}</p>`; });
             notesHtml += '</div>';
             bodyHtml += notesHtml;
         }
@@ -445,12 +636,19 @@
 
         renderArea.innerHTML = headerHtml + cleanBody;
 
-        // Configuração de Paginação
+        // NOVO: V10 - Lógica de Configuração de Paginação Inteligente
         if (chkPageNumbers.checked) {
             renderArea.parentElement.parentElement.classList.add('enable-page-numbers');
-            showToast("⚠️ Na tela de impressão, marque <b>'Cabeçalhos e rodapés'</b> para o número da página aparecer.", 6000);
+            
+            const prePages = parseInt(preTextPagesInput.value) || 0;
+            // Configura o counter-reset no CSS do elemento principal. 
+            // O CSS incrementa 1 na inicialização e em cada page-break.
+            renderArea.style.setProperty('--abnt-counter-start', prePages);
+            
+            showToast("⚠️ Para salvar em PDF, marque <b>'Cabeçalhos e rodapés'</b> na tela de impressão do Navegador.", 6000);
         } else {
             renderArea.parentElement.parentElement.classList.remove('enable-page-numbers');
+            renderArea.style.removeProperty('--abnt-counter-start');
         }
 
         editorView.style.display = 'none';
@@ -470,7 +668,6 @@
         adjustHeight(bodyInput);
     }
 
-    // Botões Toolbar Básicos
     document.querySelectorAll('.tool-btn[data-action]').forEach(btn => {
         btn.addEventListener('click', () => {
             const action = btn.getAttribute('data-action');
@@ -484,9 +681,9 @@
         });
     });
 
-    // Modais
     function openConfigModal() { document.getElementById('configModal').style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    
     function openExcelModal() { document.getElementById('excelData').value = ''; document.getElementById('tableTitle').value = ''; document.getElementById('tableSource').value = ''; document.getElementById('excelModal').style.display = 'flex'; }
     function insertExcelTable() {
         const data = document.getElementById('excelData').value.trim(); const titulo = document.getElementById('tableTitle').value.trim() || 'Sem título'; const fonte = document.getElementById('tableSource').value.trim() || 'Elaborado pelo autor';
